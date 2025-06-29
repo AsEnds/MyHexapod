@@ -1,10 +1,9 @@
 import sys
 import os
 import time
-import json
 import pygame
 import threading
-import pod2 as pod
+from pod2 import CommandHandler
 
 sys.path.append('/home/pi/SpiderPi/')
 
@@ -15,16 +14,16 @@ key_map = {"PSB_CROSS": 0, "PSB_CIRCLE": 1, "PSB_SQUARE": 3, "PSB_TRIANGLE": 4,
 last_input_time = time.time()
 TIMEOUT = 2
 
-def update_last_input_time():
+def update_last_input_time(controller):
     global last_input_time
-    pod.pd.move_flag = True
+    controller.move_flag = True
     last_input_time = time.time()
 
-def check_timeout():
+def check_timeout(controller):
     global last_input_time
     while True:
         if time.time() - last_input_time > TIMEOUT:
-            pod.pd.move_flag = False
+            controller.move_flag = False
         time.sleep(1)
 
 def joystick_init():
@@ -48,9 +47,10 @@ def joystick_init():
 button_states = {key: False for key in key_map.keys()}
 hat_flag = False
 
-def get_joystick_data():
+def get_joystick_data(handler: CommandHandler):
     global hat_flag
     connected = False
+    threading.Thread(target=check_timeout, args=(handler.ctrl,), daemon=True).start()
     while True:
         if os.path.exists("/dev/input/js0"):
             if not connected:
@@ -77,13 +77,13 @@ def get_joystick_data():
                 for button, index in key_map.items():
                     if js.get_button(index):
                         if not button_states[button]:
-                            update_last_input_time()
-                            eval(f"pod.set_{button}_button()")
+                            update_last_input_time(handler.ctrl)
+                            getattr(handler, f"set_{button}_button")()
                             print(f"{button} pressed")
                             button_states[button] = True
                     else:
                         if button_states[button]:
-                            pod.button_release()
+                            handler.button_release()
                             print(f"{button} released")
                             button_states[button] = False
 
@@ -91,16 +91,16 @@ def get_joystick_data():
                 ly1 = js.get_axis(1)
 
                 if lx1 + ly1 != 0:  # 左摇杆
-                    update_last_input_time()
-                    pod.set_LEFT_STICK_button(lx1, ly1)
+                    update_last_input_time(handler.ctrl)
+                    handler.set_LEFT_STICK_button(lx1, ly1)
                     print(f"Left Stick: ({lx1},{ly1})")
 
                 lx2 = js.get_axis(2)
                 ly2 = js.get_axis(3)
 
                 if lx2 + ly2 != 0:  # 右摇杆
-                    update_last_input_time()
-                    pod.set_RIGHT_STICK_button(lx2, ly2)
+                    update_last_input_time(handler.ctrl)
+                    handler.set_RIGHT_STICK_button(lx2, ly2)
                     print(f"Right Stick: ({lx2},{ly2})")
 
                 hat_x, hat_y = js.get_hat(0)
@@ -109,24 +109,24 @@ def get_joystick_data():
                     hat_flag = True
                     print(f"Hat Switch: ({hat_x}, {hat_y})")
                     if hat_x == 1:
-                        update_last_input_time()
-                        pod.set_Right_button()
+                        update_last_input_time(handler.ctrl)
+                        handler.set_Right_button()
                         print("Hat Switch: Right")
                     elif hat_x == -1:
-                        update_last_input_time()
-                        pod.set_Left_button()
+                        update_last_input_time(handler.ctrl)
+                        handler.set_Left_button()
                         print("Hat Switch: Left")
                     if hat_y == 1:
-                        update_last_input_time()
-                        pod.set_Up_button()
+                        update_last_input_time(handler.ctrl)
+                        handler.set_Up_button()
                         print("Hat Switch: Up")
                     elif hat_y == -1:
-                        update_last_input_time()
-                        pod.set_Down_button()
+                        update_last_input_time(handler.ctrl)
+                        handler.set_Down_button()
                         print("Hat Switch: Down")
                 else:
                     if hat_flag:
-                        pod.button_release()
+                        handler.button_release()
                         print(f"hat released")
                         hat_flag = False
 
