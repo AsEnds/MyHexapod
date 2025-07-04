@@ -1,0 +1,20 @@
+"""单腿演示步态。"""
+
+from typing import List
+from core.geometry import Position3
+
+
+class OneLegGait:
+    """单腿移动步态"""
+
+    def __init__(self):
+        self.points: List[List[Position3]] = []
+
+    def plan(self, controller, step_idx: int):
+        """返回当前步目标"""
+        if not self.points:
+            self.points = [
+                [p for p in controller.default_positions]
+                for _ in range(controller.config.N_POINTS)
+            ]
+        return self.points[step_idx]
